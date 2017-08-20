@@ -4,6 +4,7 @@ from collections import Counter
 from nltk.tokenize import RegexpTokenizer
 
 from src.generating_lstm.common.tokens import PAD_TOKEN, UNK_TOKEN
+from src.generating_lstm.common.util import one_hot
 
 
 class Dataset:
@@ -54,7 +55,11 @@ class Dataset:
             input_ids = self.vocab.ids_for_tokens(inputs)
             target_ids = self.vocab.ids_for_tokens(targets)
 
-            self.index_to_batch[self.next_batch_index_to_load] = (input_ids, target_ids)
+            # Convert to one-hot vectors
+            inputs_one_hot = [one_hot(i, self.vocab.get_size()) for i in input_ids]
+            targets_one_hot = [one_hot(i, self.vocab.get_size()) for i in target_ids]
+
+            self.index_to_batch[self.next_batch_index_to_load] = (inputs_one_hot, targets_one_hot)
             self.next_batch_index_to_load += 1
 
     def __iter__(self):

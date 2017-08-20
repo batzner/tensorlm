@@ -14,6 +14,8 @@ def train():
                                num_layers=3,
                                max_batch_size=128)
 
+        session.run(tf.global_variables_initializer())
+
         dataset = Dataset(TEXT_PATH, vocab, 128)
 
         epoch = 1
