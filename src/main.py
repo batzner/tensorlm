@@ -7,23 +7,20 @@ TEXT_PATH = "datasets/sherlock/sherlock-train.txt"
 
 def train():
     with tf.Session() as session:
-        vocab = Vocabulary.create_from_text(TEXT_PATH)
-        dataset = Dataset(TEXT_PATH, vocab, 128)
 
-        for inputs, targets in dataset:
-            print(inputs)
-            print(targets)
-            print("--")
-
-        model = GeneratingLSTM(vocab_size=98,
+        vocab = Vocabulary.create_from_text(TEXT_PATH, max_vocab_size=98)
+        model = GeneratingLSTM(vocab_size=vocab.get_size(),
                                num_neurons=100,
                                num_layers=3,
                                max_batch_size=128)
 
+        dataset = Dataset(TEXT_PATH, vocab, 128)
+
         epoch = 1
         while epoch < 20:
-            pass
-
+            for inputs, targets in dataset:
+                loss = model.train_step(session, inputs, targets)
+                print(loss)
 
 def main(_):
     train()

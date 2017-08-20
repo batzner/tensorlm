@@ -8,14 +8,14 @@ from src.generating_lstm.common.tokens import PAD_TOKEN
 
 class GeneratingLSTM:
     def __init__(self, vocab_size, num_neurons, num_layers, max_batch_size,
-                 output_keep_prob=1, max_gradient_norm=5,
+                 output_keep_prob=1.0, max_gradient_norm=5,
                  initial_learning_rate=0.001, forward_only=False):
         self.num_neurons = num_neurons
         self.num_layers = num_layers
         self.vocab_size = vocab_size
         self.max_batch_size = max_batch_size
         self.max_gradient_norm = max_gradient_norm
-        self.output_keep_prob = output_keep_prob
+        self.output_keep_prob = float(output_keep_prob)
         self.output_keep_var = tf.Variable(output_keep_prob, trainable=False, name="output_keep")
         self.learning_rate = tf.Variable(initial_learning_rate, trainable=False, name="lr")
         self.forward_only = forward_only
@@ -57,13 +57,9 @@ class GeneratingLSTM:
         self._on_resume_training(session)
         return total_loss / step_count
 
-    def sample(self, session, dataset, prime, steps=100, stop_tokens=None, max_stops=1):
+    def sample(self, session, dataset, prime, steps=100):
         # Disable dropout and save the LSTM state before overwriting it with sampling
         self._on_pause_training(session)
-
-        stop_ids = []
-        if stop_tokens:
-            stop_ids = [dataset.token_to_id(w) for w in stop_tokens]
 
         # Sample from the model
         prime_tokens = dataset.tokenize_to_ids(prime)
@@ -73,7 +69,6 @@ class GeneratingLSTM:
         outputs = [output]
 
         # Feed the model its own output #humancentipede
-        seen_stops = 0
         for _ in range(steps):
             output = self._sample_step(session, np.array([[output]]))[0, 0]
             outputs.append(output)
@@ -81,12 +76,6 @@ class GeneratingLSTM:
             # If the model output _PAD, abort
             if output == dataset.token_to_id(PAD_TOKEN):
                 break
-
-            # Check, if the model output a stop token
-            if output in stop_ids:
-                seen_stops += 1
-                if seen_stops >= max_stops:
-                    break
 
         output_text = dataset.token_ids_to_sentence(outputs)
 
@@ -99,14 +88,18 @@ class GeneratingLSTM:
 
     def _build_graph(self):
         # Build the central LSTM
-        cell = tf.nn.rnn_cell.LSTMCell(self.num_neurons)
-        cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.output_keep_var)
-        self.cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self.num_layers)
+        def layer():
+            # See https://stackoverflow.com/a/44882273/2628369
+            cell = tf.nn.rnn_cell.LSTMCell(self.num_neurons)
+            cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.output_keep_var)
+            return cell
 
-        self.logits, flat_logits = self._build_prediction()
+        self.cell = tf.nn.rnn_cell.MultiRNNCell([layer() for _ in range(self.num_layers)])
+
+        self.logits = self._build_prediction()
 
         self.targets = tf.placeholder(tf.int32, [None, None])
-        self.loss = self._build_loss(flat_logits)
+        self.loss = self._build_loss()
         if not self.forward_only:
             self.optimize = self._build_optimizer()
 
@@ -153,17 +146,16 @@ class GeneratingLSTM:
         flat_logits = tf.matmul(flat_outputs, softmax_w) + softmax_b
         logits = tf.reshape(flat_logits, [-1, num_timesteps, self.vocab_size])
 
-        return logits, flat_logits
+        return logits
 
-    def _build_loss(self, flat_logits):
+    def _build_loss(self):
         # Compute cross entropy for each token.
-        # logits will have shape (batch_size*timesteps, vocab_size), so targets should have shape
-        # (batch_size*timesteps).
-        flat_targets = tf.reshape(self.targets, [-1])
-        return tf.nn.seq2seq.sequence_loss(
-            [flat_logits],
-            [flat_targets],
-            [tf.ones(tf.shape(flat_targets))])
+        # logits will have shape (batch_size, timesteps, vocab_size), ao targets should have shape
+        # (batch_size, timesteps).
+        return tf.contrib.seq2seq.sequence_loss(
+            self.logits,
+            self.targets,
+            tf.ones(tf.shape(self.targets)))
 
     def _build_optimizer(self):
         # Clip the gradients and optimize the variables

@@ -87,6 +87,9 @@ class Vocabulary:
             ids.append(token_id)
         return ids
 
+    def get_size(self):
+        return len(self.token_to_id)
+
     @staticmethod
     def load_from_path(path):
         with open(path) as f:
