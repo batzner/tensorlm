@@ -138,3 +138,4 @@ results
 .DS_Store
 resources
 models
+venv-gpu

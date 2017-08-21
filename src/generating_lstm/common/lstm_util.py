@@ -6,7 +6,7 @@ def get_state_variables(cell, batch_size):
     # its value.
     state_variables = []
     for state_c, state_h in cell.zero_state(batch_size, tf.float32):
-        state_variables.append(tf.nn.rnn_cell.LSTMStateTuple(
+        state_variables.append(tf.contrib.rnn.LSTMStateTuple(
             tf.Variable(state_c, trainable=False),
             tf.Variable(state_h, trainable=False)))
     return tuple(state_variables)
@@ -17,7 +17,7 @@ def get_state_variables_for_batch(state_variables, batch_size):
     # in the tuples.
     result = []
     for state_c, state_h in state_variables:
-        result.append(tf.nn.rnn_cell.LSTMStateTuple(state_c[:batch_size], state_h[:batch_size]))
+        result.append(tf.contrib.rnn.LSTMStateTuple(state_c[:batch_size], state_h[:batch_size]))
     return tuple(result)
 
 

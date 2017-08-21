@@ -57,12 +57,12 @@ class GeneratingLSTM:
         self._on_resume_training(session)
         return total_loss / step_count
 
-    def sample(self, session, dataset, prime, steps=100):
+    def sample(self, session, vocabulary, prime, steps=100):
         # Disable dropout and save the LSTM state before overwriting it with sampling
         self._on_pause_training(session)
 
         # Sample from the model
-        prime_tokens = dataset.tokenize_to_ids(prime)
+        prime_tokens = vocabulary.tokens_to_ids(prime)
 
         # Prime the model by feeding given inputs while only caring about its last output
         output = self._sample_step(session, np.array([prime_tokens]))[0, -1]
@@ -74,14 +74,14 @@ class GeneratingLSTM:
             outputs.append(output)
 
             # If the model output _PAD, abort
-            if output == dataset.token_to_id(PAD_TOKEN):
+            if output == vocabulary.token_to_id[PAD_TOKEN]:
                 break
 
-        output_text = dataset.token_ids_to_sentence(outputs)
+        output_chars = vocabulary.ids_to_tokens(outputs)
 
         # Re-enable dropout and restore the LSTM training state
         self._on_resume_training(session)
-        return output_text
+        return ''.join(output_chars)
 
     def reset_state(self, session):
         session.run(self.reset_state_op)
@@ -90,11 +90,11 @@ class GeneratingLSTM:
         # Build the central LSTM
         def layer():
             # See https://stackoverflow.com/a/44882273/2628369
-            cell = tf.nn.rnn_cell.LSTMCell(self.num_neurons)
-            cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.output_keep_var)
+            cell = tf.contrib.rnn.LSTMCell(self.num_neurons)
+            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.output_keep_var)
             return cell
 
-        self.cell = tf.nn.rnn_cell.MultiRNNCell([layer() for _ in range(self.num_layers)])
+        self.cell = tf.contrib.rnn.MultiRNNCell([layer() for _ in range(self.num_layers)])
 
         self.logits = self._build_prediction()
 

@@ -1,18 +1,21 @@
 import json
 import os
 from collections import Counter
+
+import math
 from nltk.tokenize import RegexpTokenizer
 
 from src.generating_lstm.common.tokens import PAD_TOKEN, UNK_TOKEN
-from src.generating_lstm.common.util import one_hot
+from src.generating_lstm.common.util import one_hot, get_chunks
 
 
 class Dataset:
-    def __init__(self, path, vocab, batch_size, level="char"):
+    def __init__(self, path, vocab, batch_size, num_timesteps, level="char"):
         self.path = path
         self.level = level
         self.vocab = vocab
         self.batch_size = batch_size
+        self.num_timesteps = num_timesteps
         self.current_iter_batch = 0
 
         self.text_iter = TextIter(self.path, self.level)
@@ -34,33 +37,72 @@ class Dataset:
         self.update_batches(tokens)
         return self.get_batch(batch_index)
 
+    def batch_tokens_to_ids(self, batch):
+        # Translate an 2D array of tokens to ids
+        batch_ids = []
+        for batch_item in batch:
+            ids = self.vocab.tokens_to_ids(batch_item)
+            batch_ids.append(ids)
+        return batch_ids
+
     def update_batches(self, tokens):
         self.index_to_batch = {}
 
-        # Get all batches from the tokens
-        for inputs_start in range(0, len(tokens) - 1, self.batch_size):
-            inputs = tokens[inputs_start: inputs_start + self.batch_size]
-            targets = tokens[inputs_start + 1: inputs_start + 1 + self.batch_size]
-
-            # Pad the inputs and targets
-            if len(inputs) < self.batch_size:
-                missing = self.batch_size - len(inputs)
-                inputs += [PAD_TOKEN for _ in range(missing)]
-
-            if len(targets) < self.batch_size:
-                missing = self.batch_size - len(targets)
-                targets += [PAD_TOKEN for _ in range(missing)]
-
+        batches = self.split_tokens_in_batches(tokens)
+        for batch_inputs, batch_targets in batches:
             # Lookup the tokens to ids
-            input_ids = self.vocab.ids_for_tokens(inputs)
-            target_ids = self.vocab.ids_for_tokens(targets)
+            batch_input_ids = self.batch_tokens_to_ids(batch_inputs)
+            batch_target_ids = self.batch_tokens_to_ids(batch_targets)
 
-            # Convert to one-hot vectors
-            inputs_one_hot = [one_hot(i, self.vocab.get_size()) for i in input_ids]
-            targets_one_hot = [one_hot(i, self.vocab.get_size()) for i in target_ids]
-
-            self.index_to_batch[self.next_batch_index_to_load] = (inputs_one_hot, targets_one_hot)
+            # Each batch is a tuple with inputs and targets
+            self.index_to_batch[self.next_batch_index_to_load] = (batch_input_ids, batch_target_ids)
             self.next_batch_index_to_load += 1
+
+    def split_tokens_in_batches(self, tokens):
+        # Start the rows of batches at equidistant points in the tokens
+
+        # The batches within a set of tokens (about 1MB of size) should follow each other exactly.
+        # The sets of tokens don't need to follow each other exactly. We can neglect this
+        # incorrectness but should reset the state before each set of tokens
+
+        num_batches = math.ceil((len(tokens) - 1) / float(self.num_timesteps * self.batch_size))
+
+        # Each batch is a tuple with inputs and targets
+        batches = [([], []) for _ in range(num_batches)]
+
+        token_index = 0
+        for row_index in range(self.batch_size):
+            # Take rows of batches for a specific row_index consisting of
+            # num_batches * num_timesteps tokens
+            rows_inputs = []
+            rows_targets = []
+            while (token_index < len(tokens) - 1
+                   and len(rows_inputs) < num_batches * self.num_timesteps):
+                rows_inputs.append(tokens[token_index])
+                rows_targets.append(tokens[token_index + 1])
+                token_index += 1
+
+            # Fill up the rows_tokens if we reached the end of the tokens first
+            assert len(rows_inputs) == len(rows_targets)
+            if len(rows_inputs) < num_batches * self.num_timesteps:
+                missing = num_batches * self.num_timesteps - len(rows_inputs)
+                rows_inputs += [PAD_TOKEN for _ in range(missing)]
+                rows_targets += [PAD_TOKEN for _ in range(missing)]
+
+            # Split up the rows_tokens to distribute them to the batches
+            batch_index_to_inputs_row = get_chunks(rows_inputs, self.num_timesteps)
+            batch_index_to_targets_row = get_chunks(rows_targets, self.num_timesteps)
+
+            assert len(batch_index_to_inputs_row) == num_batches
+
+            # Append the new rows to the batches
+            for batch_index, batch in enumerate(batches):
+                inputs_row = batch_index_to_inputs_row[batch_index]
+                targets_row = batch_index_to_targets_row[batch_index]
+                batch[0].append(inputs_row)
+                batch[1].append(targets_row)
+
+        return batches
 
     def __iter__(self):
         return self
@@ -82,7 +124,7 @@ class Vocabulary:
         with open(path, 'w') as f:
             json.dump(self.token_to_id, f)
 
-    def ids_for_tokens(self, tokens):
+    def tokens_to_ids(self, tokens):
         ids = []
         for token in tokens:
             if token in self.token_to_id:
@@ -90,7 +132,11 @@ class Vocabulary:
             else:
                 token_id = self.token_to_id[UNK_TOKEN]
             ids.append(token_id)
+
         return ids
+
+    def ids_to_tokens(self, ids):
+        return [self.id_to_token[i] for i in ids]
 
     def get_size(self):
         return len(self.token_to_id)
