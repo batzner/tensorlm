@@ -1,16 +1,16 @@
 import numpy as np
 import tensorflow as tf
 
-from src.generating_lstm.common.lstm_util import get_state_variables_for_batch, \
+from tensorlm.common.lstm_util import get_state_variables_for_batch, \
     get_state_update_op, get_state_variables, get_state_reset_op
-from src.generating_lstm.common.tokens import PAD_TOKEN
+from tensorlm.common.tokens import PAD_TOKEN
 
 
 class GeneratingLSTM:
-    def __init__(self, vocab_size, num_neurons, num_layers, max_batch_size,
+    def __init__(self, vocab_size, neurons_per_layer, num_layers, max_batch_size,
                  output_keep_prob=1.0, max_gradient_norm=5,
                  initial_learning_rate=0.001, forward_only=False):
-        self.num_neurons = num_neurons
+        self.neurons_per_layer = neurons_per_layer
         self.num_layers = num_layers
         self.vocab_size = vocab_size
         self.max_batch_size = max_batch_size
@@ -40,14 +40,15 @@ class GeneratingLSTM:
 
         return loss
 
-    def evaluate(self, session, dataset, batch_size, num_timesteps):
+    def evaluate(self, session, dataset):
         # Disable dropout and save the LSTM state before overwriting it with sampling
         self._on_pause_training(session)
 
         # Test the performance on the validation dataset
         total_loss = 0
         step_count = 0
-        for batch_inputs, batch_targets in dataset.get_batch_iter(batch_size, num_timesteps):
+
+        for batch_inputs, batch_targets in dataset:
             feed_dict = {self.inputs: batch_inputs, self.targets: batch_targets}
             loss, _ = session.run([self.loss, self.update_state_op], feed_dict=feed_dict)
             total_loss += loss
@@ -90,7 +91,7 @@ class GeneratingLSTM:
         # Build the central LSTM
         def layer():
             # See https://stackoverflow.com/a/44882273/2628369
-            cell = tf.contrib.rnn.LSTMCell(self.num_neurons)
+            cell = tf.contrib.rnn.LSTMCell(self.neurons_per_layer)
             cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.output_keep_var)
             return cell
 
@@ -134,12 +135,12 @@ class GeneratingLSTM:
             self.freeze_state_op = get_state_update_op(state_frozen, state)
             self.unfreeze_state_op = get_state_update_op(state, state_frozen)
 
-        # Softmax_w is 2D, but the outputs are 3D (batch_size x num_timesteps x num_neurons),
+        # Softmax_w is 2D, but the outputs are 3D (batch_size x num_timesteps x neurons_per_layer),
         # so we have to flatten the outputs for matrix multiplication. We merge the first two
         # dimensions and unpack them later again
-        flat_outputs = tf.reshape(outputs, [-1, self.num_neurons])
+        flat_outputs = tf.reshape(outputs, [-1, self.neurons_per_layer])
 
-        softmax_w = tf.get_variable("softmax_w", [self.num_neurons, self.vocab_size],
+        softmax_w = tf.get_variable("softmax_w", [self.neurons_per_layer, self.vocab_size],
                                     initializer=tf.truncated_normal_initializer(stddev=0.1))
         softmax_b = tf.get_variable("softmax_b", [self.vocab_size],
                                     initializer=tf.constant_initializer(0.1))

@@ -1,24 +1,24 @@
 import json
-import os
 from collections import Counter
 
 import math
 from nltk.tokenize import RegexpTokenizer
 
-from src.generating_lstm.common.tokens import PAD_TOKEN, UNK_TOKEN
-from src.generating_lstm.common.util import one_hot, get_chunks
+from tensorlm.common.tokens import PAD_TOKEN, UNK_TOKEN
+from tensorlm.common.util import get_chunks
 
 
-class Dataset:
-    def __init__(self, path, vocab, batch_size, num_timesteps, level="char"):
+class DatasetIterator:
+    def __init__(self, path, vocab, batch_size, num_timesteps, bytes_in_memory=1000000):
         self.path = path
-        self.level = level
         self.vocab = vocab
         self.batch_size = batch_size
         self.num_timesteps = num_timesteps
+        self.bytes_in_memory = bytes_in_memory
+
         self.current_iter_batch = 0
 
-        self.text_iter = TextIter(self.path, self.level)
+        self.text_iter = TextIterator(self.path, self.vocab.level, bytes_in_memory)
         self.next_batch_index_to_load = 0
         self.index_to_batch = {}
 
@@ -29,7 +29,7 @@ class Dataset:
         # Check if the text_iter is already past the batch_index
         if batch_index < self.next_batch_index_to_load:
             # Reset the file iterator to 0 to start again
-            self.text_iter = TextIter(self.path, self.level)
+            self.text_iter = TextIterator(self.path, self.vocab.level, self.bytes_in_memory)
             self.next_batch_index_to_load = 0
 
         # Load from the text iterator until the current_batch_index equals the batch_index
@@ -115,7 +115,8 @@ class Dataset:
 
 
 class Vocabulary:
-    def __init__(self, token_to_id):
+    def __init__(self, token_to_id, level):
+        self.level = level
         self.token_to_id = token_to_id
         # Reverse the token to id dict
         self.id_to_token = {v: k for k, v in self.token_to_id.items()}
@@ -142,16 +143,16 @@ class Vocabulary:
         return len(self.token_to_id)
 
     @staticmethod
-    def load_from_path(path):
+    def load_from_path(path, level="char"):
         with open(path) as f:
             token_to_id = json.load(f)
-        return Vocabulary(token_to_id)
+        return Vocabulary(token_to_id, level)
 
     @staticmethod
-    def create_from_text(text_path, max_vocab_size=60, level="char"):
+    def create_from_text(text_path, max_vocab_size, level="char"):
         # Get the most common tokens from the text
         token_counter = Counter()
-        for tokens in TextIter(text_path, level):
+        for tokens in TextIterator(text_path, level, bytes_in_memory=1000000):
             token_counter.update(tokens)
 
         # Get the id for each of the most common tokens
@@ -162,11 +163,11 @@ class Vocabulary:
         for token, _ in token_counter.most_common(max_vocab_size - len(token_to_id)):
             token_to_id[token] = len(token_to_id)
 
-        return Vocabulary(token_to_id)
+        return Vocabulary(token_to_id, level)
 
 
-class TextIter:
-    def __init__(self, path, level, bytes_in_memory=1000000):
+class TextIterator:
+    def __init__(self, path, level, bytes_in_memory):
         self.path = path
         self.level = level
         self.current_byte = 0
@@ -178,7 +179,7 @@ class TextIter:
     def __next__(self):
         # Load the text into memory in x MB parts
 
-        # TODO: This will break words at the end. At char-level this is no problem. At word level
+        # This will break words at the end. At char-level this is no problem. At word level
         # this introduces a little incorrectness. But with 1MB steps, it shouldn't be a problem.
 
         with open(self.path) as f:
