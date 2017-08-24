@@ -11,6 +11,19 @@ from tensorlm.common.util import get_chunks
 VOCAB_FILE_NAME = "vocab.json"
 
 
+def tokenize(sentence, level):
+    if level == "char":
+        # No need for tokenizing
+        return list(sentence)
+    elif level == "word":
+        # Tokenize while keeping indentation. Glue letters and numbers to themselves but
+        # keep all other chars isolated
+        tokenizer = RegexpTokenizer(r'\w+|\S|\s')
+        return tokenizer.tokenize(sentence)
+    else:
+        raise ValueError("Unknown token level: {}".format(level))
+
+
 class DatasetIterator:
     def __init__(self, path, vocab, batch_size, num_timesteps, bytes_in_memory=1000000):
         self.path = path
@@ -130,6 +143,9 @@ class Vocabulary:
             json.dump(self.token_to_id, f)
 
     def tokens_to_ids(self, tokens):
+        if type(tokens) != list:
+            raise TypeError("tokens need to be of type list, but are {}".format(type(tokens)))
+
         ids = []
         for token in tokens:
             if token in self.token_to_id:
@@ -207,16 +223,6 @@ class TextIterator:
 
             if part:
                 # Tokenize the part based on the level
-                if self.level == "char":
-                    # No need for tokenizing
-                    return list(part)
-                elif self.level == "word":
-                    # Tokenize while keeping indentation. Glue letters and numbers to themselves but
-                    # keep all other chars isolated
-                    tokenizer = RegexpTokenizer(r'\w+|\S|\s')
-                    return tokenizer.tokenize(part)
-                else:
-                    raise ValueError("Unknown token level: {}".format(self.level))
-
+                return tokenize(part, level=self.level)
             else:
                 raise StopIteration()

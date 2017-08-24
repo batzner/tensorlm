@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorlm.common.lstm_util import get_state_variables_for_batch, \
     get_state_update_op, get_state_variables, get_state_reset_op
 from tensorlm.common.tokens import PAD_TOKEN
+from tensorlm.dataset import tokenize
 
 MODEL_FILE_NAME = "model"
 
@@ -68,10 +69,11 @@ class GeneratingLSTM:
         self._on_pause_training(session)
 
         # Sample from the model
-        prime_tokens = vocabulary.tokens_to_ids(prime)
+        prime_tokens = tokenize(prime, level=vocabulary.level)
+        prime_ids = vocabulary.tokens_to_ids(prime_tokens)
 
         # Prime the model by feeding given inputs while only caring about its last output
-        output = self._sample_step(session, np.array([prime_tokens]))[0, -1]
+        output = self._sample_step(session, np.array([prime_ids]))[0, -1]
         outputs = [output]
 
         # Feed the model its own output #humancentipede
