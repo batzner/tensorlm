@@ -1,9 +1,13 @@
+import os
+
 import numpy as np
 import tensorflow as tf
 
 from tensorlm.common.lstm_util import get_state_variables_for_batch, \
     get_state_update_op, get_state_variables, get_state_reset_op
 from tensorlm.common.tokens import PAD_TOKEN
+
+MODEL_FILE_NAME = "model"
 
 
 class GeneratingLSTM:
@@ -19,13 +23,14 @@ class GeneratingLSTM:
         self.output_keep_var = tf.Variable(output_keep_prob, trainable=False, name="output_keep")
         self.learning_rate = tf.Variable(initial_learning_rate, trainable=False, name="lr")
         self.forward_only = forward_only
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
         initializer = tf.contrib.layers.xavier_initializer()
         with tf.variable_scope("model", initializer=initializer):
             self._build_graph()
 
         saved_variables = [v for v in tf.global_variables() if not v.name.startswith("lstm_state")]
-        self.saver = tf.train.Saver(saved_variables, max_to_keep=1)
+        self.saver = tf.train.Saver(saved_variables, max_to_keep=3)
 
     def train_step(self, session, inputs, targets, update_state=True):
         # Returns the output tokens for each batch as a 2D ndarray and the loss
@@ -86,6 +91,10 @@ class GeneratingLSTM:
 
     def reset_state(self, session):
         session.run(self.reset_state_op)
+
+    def save(self, session, save_dir):
+        save_path = os.path.join(save_dir, MODEL_FILE_NAME)
+        self.saver.save(session, save_path, global_step=self.global_step)
 
     def _build_graph(self):
         # Build the central LSTM
@@ -163,7 +172,7 @@ class GeneratingLSTM:
         tvars = tf.trainable_variables()
         grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), self.max_gradient_norm)
         optimizer = tf.train.RMSPropOptimizer(self.learning_rate)
-        return optimizer.apply_gradients(zip(grads, tvars))
+        return optimizer.apply_gradients(zip(grads, tvars), global_step=self.global_step)
 
     def _on_pause_training(self, session):
         # Disable dropout and save the current state.

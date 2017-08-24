@@ -1,4 +1,5 @@
 import json
+import os
 from collections import Counter
 
 import math
@@ -6,6 +7,8 @@ from nltk.tokenize import RegexpTokenizer
 
 from tensorlm.common.tokens import PAD_TOKEN, UNK_TOKEN
 from tensorlm.common.util import get_chunks
+
+VOCAB_FILE_NAME = "vocab.json"
 
 
 class DatasetIterator:
@@ -121,8 +124,9 @@ class Vocabulary:
         # Reverse the token to id dict
         self.id_to_token = {v: k for k, v in self.token_to_id.items()}
 
-    def save_to_path(self, path):
-        with open(path, 'w') as f:
+    def save_to_dir(self, dir):
+        out_path = os.path.join(dir, VOCAB_FILE_NAME)
+        with open(out_path, 'w') as f:
             json.dump(self.token_to_id, f)
 
     def tokens_to_ids(self, tokens):
@@ -143,8 +147,9 @@ class Vocabulary:
         return len(self.token_to_id)
 
     @staticmethod
-    def load_from_path(path, level="char"):
-        with open(path) as f:
+    def load_from_dir(dir, level="char"):
+        out_path = os.path.join(dir, VOCAB_FILE_NAME)
+        with open(out_path) as f:
             token_to_id = json.load(f)
         return Vocabulary(token_to_id, level)
 
