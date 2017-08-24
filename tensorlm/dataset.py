@@ -147,8 +147,21 @@ class Vocabulary:
         return len(self.token_to_id)
 
     @staticmethod
-    def load_from_dir(dir, level="char"):
-        out_path = os.path.join(dir, VOCAB_FILE_NAME)
+    def load_or_create(save_dir, text_path, max_vocab_size, level="char"):
+        if not save_dir:
+            return Vocabulary.create_from_text(text_path, max_vocab_size=max_vocab_size,
+                                               level=level)
+
+        # Try to reload
+        try:
+            return Vocabulary.load_from_dir(save_dir, level=level)
+        except IOError:
+            return Vocabulary.create_from_text(text_path, max_vocab_size=max_vocab_size,
+                                               level=level)
+
+    @staticmethod
+    def load_from_dir(save_dir, level="char"):
+        out_path = os.path.join(save_dir, VOCAB_FILE_NAME)
         with open(out_path) as f:
             token_to_id = json.load(f)
         return Vocabulary(token_to_id, level)

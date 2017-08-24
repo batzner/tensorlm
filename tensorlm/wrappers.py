@@ -7,6 +7,7 @@ import tensorflow as tf
 from tensorlm.common.util import restore_possible
 from tensorlm.dataset import Vocabulary, DatasetIterator
 from tensorlm.model import GeneratingLSTM
+from tensorlm.trainlog import TrainState
 
 
 class _BaseLM:
@@ -17,8 +18,11 @@ class _BaseLM:
         self.num_timesteps = num_timesteps
         self.save_dir = save_dir
 
+        if self.save_dir and not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
         # Build the vocabulary to determine the actual vocabulary size
-        self.vocab = self._get_vocab(level, train_text_path, max_vocab_size, save_dir)
+        self.vocab = Vocabulary.load_or_create(save_dir, train_text_path, max_vocab_size, level)
         if self.save_dir:
             self.vocab.save_to_dir(save_dir)
 
@@ -33,20 +37,9 @@ class _BaseLM:
         else:
             tf_session.run(tf.global_variables_initializer())
 
-    def _get_vocab(self, level, train_text_path, max_vocab_size, save_dir):
-        if not save_dir:
-            return Vocabulary.create_from_text(train_text_path, max_vocab_size=max_vocab_size,
-                                               level=level)
-
-        # Try to reload
-        try:
-            return Vocabulary.load_from_dir(save_dir, level=level)
-        except IOError:  # TODO: Find correct error
-            return Vocabulary.create_from_text(train_text_path, max_vocab_size=max_vocab_size,
-                                               level=level)
-
     def train(self, tf_session, max_epochs=10, max_steps=None, batch_size=None, text_path=None,
-              print_every=None, save_interval_hours=1):
+              log_interval=None, print_logs=False, evaluate_interval=None, evaluate_text_path=None,
+              sample_interval=None, sample_prime="The ", save_interval_hours=1):
         if not text_path:
             text_path = self.train_text_path
 
@@ -54,34 +47,40 @@ class _BaseLM:
         if not batch_size or batch_size > self.max_batch_size:
             batch_size = self.max_batch_size
 
-        epoch = 1
-        step = 1
-        last_losses = []
+        train_state = TrainState.try_load_from_dir(self.save_dir)
         last_save_time = time()
 
-        while epoch <= max_epochs and (step <= max_steps or not max_steps):
+        while (train_state.epoch <= max_epochs and
+                   (train_state.global_step <= max_steps or not max_steps)):
+
+            # Do an epoch
             for inputs, targets in DatasetIterator(text_path, self.vocab, batch_size,
                                                    self.num_timesteps):
                 loss = self.tf_model.train_step(tf_session, inputs, targets)
-                last_losses.append(loss)
+                train_state.train_step_done(loss, log_interval=log_interval, print_log=print_logs)
 
-                if print_every and step % print_every == 0:
-                    avg_loss = np.mean(last_losses)
-                    print("Epoch: {}, Step: {}, Avg. Train Loss: {}".format(epoch, step, avg_loss))
-                    last_losses = []
+                # Evaluate
+                if evaluate_interval and train_state.global_step % evaluate_interval == 0:
+                    dev_loss = self.evaluate(tf_session, evaluate_text_path)
+                    train_state.log_dev_loss(dev_loss, print_log=print_logs)
 
-                # Save the model
+                # Sample
+                if sample_interval and train_state.global_step % sample_interval == 0:
+                    sampled = sample_prime + self.sample(tf_session, sample_prime)
+                    train_state.log_sampled(sampled, print_log=print_logs)
+
+                # Save the model and trainstate
                 if (self.save_dir and save_interval_hours and
                                 time() - last_save_time > save_interval_hours * 3600):
                     last_save_time = time()
                     self.tf_model.save(tf_session, self.save_dir)
+                    train_state.save_to_dir(self.save_dir)
 
-                # Check break conditions
-                step += 1
-                if step > max_steps or not max_steps:
+                # Check break conditions within the epoch
+                if max_steps and train_state.global_step > max_steps:
                     break
 
-            epoch += 1
+            train_state.epoch_done()
 
     def evaluate(self, tf_session, text_path):
         dataset_iter = DatasetIterator(text_path, self.vocab, batch_size=1,
@@ -89,7 +88,7 @@ class _BaseLM:
         loss = self.tf_model.evaluate(tf_session, dataset_iter)
         return loss
 
-    def complete(self, tf_session, prime):
+    def sample(self, tf_session, prime):
         return self.tf_model.sample(tf_session, self.vocab, prime)
 
 
