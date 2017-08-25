@@ -194,7 +194,7 @@ class Vocabulary:
 
     @staticmethod
     def create_from_text(text_path, max_vocab_size, level="char"):
-        LOGGER.info("Creating vocabulary from {}", text_path)
+        LOGGER.info("Creating vocabulary from %s", text_path)
 
         # Get the most common tokens from the text
         token_counter = Counter()

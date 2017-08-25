@@ -10,4 +10,9 @@ scp -i ~/dev/pems/tensorflow.pem ~/dev/python-hacks/tensorlm/datasets/sherlock/t
 scp -i ~/dev/pems/tensorflow.pem ~/dev/python-hacks/tensorlm/datasets/sherlock/valid.txt ubuntu@54.149.27.213:~/tensorlm/datasets/sherlock/valid.txt
 
 # Train
+screen
 python3 -m tensorlm.run --train=True --level=word --max_vocab_size=10000 --neurons_per_layer=250 --num_layers=3 --max_batch_size=100 --num_timesteps=160 --save_dir=out/model --evaluate_text_path=datasets/sherlock/valid.txt --train_text_path=datasets/sherlock/train.txt --max_epochs=30 --save_interval_hours=1
+
+# ctrl-a d
+
+python3 -m tensorlm.run --train=True --log_interval=1 --level=word --max_vocab_size=1000 --neurons_per_layer=250 --num_layers=3 --max_batch_size=100 --num_timesteps=160 --save_dir=out/model-small --evaluate_text_path=datasets/sherlock/valid.txt --train_text_path=datasets/sherlock/train.txt --max_epochs=30 --save_interval_hours=1

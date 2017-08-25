@@ -92,7 +92,8 @@ def main(_):
                         evaluate_text_path=FLAGS.evaluate_text_path,
                         sample_interval=FLAGS.train_sample_interval,
                         sample_prime=FLAGS.train_sample_prime,
-                        save_interval_hours=FLAGS.save_interval_hours)
+                        save_interval_hours=FLAGS.save_interval_hours,
+                        print_logs=True)
 
         elif FLAGS.evaluate:
             loss = model.evaluate(session, FLAGS.evaluate_text_path)
