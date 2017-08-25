@@ -70,7 +70,7 @@ class GeneratingLSTM:
         self._on_resume_training(session)
         return total_loss / step_count
 
-    def sample(self, session, vocabulary, prime, steps=100):
+    def sample(self, session, vocabulary, prime, num_steps=100):
         # Disable dropout and save the LSTM state before overwriting it with sampling
         self._on_pause_training(session)
 
@@ -83,7 +83,7 @@ class GeneratingLSTM:
         outputs = [output]
 
         # Feed the model its own output #humancentipede
-        for _ in range(steps):
+        for _ in range(num_steps):
             output = self._sample_step(session, np.array([[output]]))[0, 0]
             outputs.append(output)
 

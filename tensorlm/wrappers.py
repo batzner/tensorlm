@@ -13,8 +13,8 @@ from tensorlm.trainlog import TrainState
 LOGGER = get_logger(__name__)
 
 
-class _BaseLM:
-    def __init__(self, level, tf_session, train_text_path, max_vocab_size, neurons_per_layer,
+class BaseLM:
+    def __init__(self, tf_session, level, train_text_path, max_vocab_size, neurons_per_layer,
                  num_layers, max_batch_size, num_timesteps, save_dir):
         self.train_text_path = train_text_path
         self.max_batch_size = max_batch_size
@@ -57,7 +57,7 @@ class _BaseLM:
                             self.num_timesteps)
 
         while (train_state.epoch <= max_epochs and
-                   (train_state.global_step <= max_steps or not max_steps)):
+                   (not max_steps or train_state.global_step <= max_steps)):
 
             batch = train_set.get_batch(train_state.step_in_epoch)
 
@@ -80,7 +80,7 @@ class _BaseLM:
 
             # Sample
             if sample_interval and train_state.global_step % sample_interval == 0:
-                sampled = sample_prime + self.sample(tf_session, sample_prime)
+                sampled = sample_prime + self.sample(tf_session, sample_prime, num_steps=100)
                 train_state.log_sampled(sampled, print_log=print_logs)
 
             # Save the model and trainstate
@@ -96,23 +96,23 @@ class _BaseLM:
         loss = self.tf_model.evaluate(tf_session, dataset)
         return loss
 
-    def sample(self, tf_session, prime):
-        return self.tf_model.sample(tf_session, self.vocab, prime)
+    def sample(self, tf_session, prime, num_steps):
+        return self.tf_model.sample(tf_session, self.vocab, prime, num_steps)
 
 
-class CharLM(_BaseLM):
+class CharLM(BaseLM):
     def __init__(self, tf_session, train_text_path, max_vocab_size=96, neurons_per_layer=100,
                  num_layers=3, max_batch_size=10, num_timesteps=15, save_dir=None):
-        super().__init__(level="char", tf_session=tf_session, train_text_path=train_text_path,
+        super().__init__(tf_session=tf_session, level="char" , train_text_path=train_text_path,
                          max_vocab_size=max_vocab_size, neurons_per_layer=neurons_per_layer,
                          num_layers=num_layers, max_batch_size=max_batch_size,
                          num_timesteps=num_timesteps, save_dir=save_dir)
 
 
-class WordLM(_BaseLM):
+class WordLM(BaseLM):
     def __init__(self, tf_session, train_text_path, max_vocab_size=2000, neurons_per_layer=100,
                  num_layers=2, max_batch_size=10, num_timesteps=5, save_dir=None):
-        super().__init__(level="word", tf_session=tf_session, train_text_path=train_text_path,
+        super().__init__(tf_session=tf_session, level="word", train_text_path=train_text_path,
                          max_vocab_size=max_vocab_size, neurons_per_layer=neurons_per_layer,
                          num_layers=num_layers, max_batch_size=max_batch_size,
                          num_timesteps=num_timesteps, save_dir=save_dir)

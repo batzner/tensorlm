@@ -133,8 +133,9 @@ class Dataset:
         return self
 
     def __next__(self):
-        # The text iter will automatically raise the StopIteration
         batch = self.get_batch(self.current_iter_batch)
+        if not batch:
+            raise StopIteration()
         self.current_iter_batch += 1
         return batch
 
