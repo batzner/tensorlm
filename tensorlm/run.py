@@ -83,7 +83,7 @@ def main(_):
             flags_path = os.path.join(FLAGS.save_dir, "flags.json")
             if not os.path.exists(flags_path):
                 with open(flags_path, "w") as f:
-                    json.dump(FLAGS["__flags"].__dict__, f)
+                    json.dump(FLAGS.__dict__["__flags"], f)
 
             model.train(session, max_epochs=FLAGS.max_epochs,
                         max_steps=FLAGS.max_steps,

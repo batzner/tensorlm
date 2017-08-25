@@ -17,7 +17,7 @@ LSTM_STATE_SCOPE_NAME = "lstm_state"
 
 class GeneratingLSTM:
     def __init__(self, vocab_size, neurons_per_layer, num_layers, max_batch_size,
-                 output_keep_prob=1.0, max_gradient_norm=5,
+                 output_keep_prob=0.5, max_gradient_norm=5,
                  initial_learning_rate=0.001, forward_only=False):
         self.neurons_per_layer = neurons_per_layer
         self.num_layers = num_layers
