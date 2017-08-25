@@ -10,6 +10,10 @@ from tensorlm.dataset import tokenize
 
 MODEL_FILE_NAME = "model"
 
+# We distinguish between the learned model variables and the variables that store the current state
+MODEL_SCOPE_NAME = "model"
+LSTM_STATE_SCOPE_NAME = "lstm_state"
+
 
 class GeneratingLSTM:
     def __init__(self, vocab_size, neurons_per_layer, num_layers, max_batch_size,
@@ -27,10 +31,12 @@ class GeneratingLSTM:
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
         initializer = tf.contrib.layers.xavier_initializer()
-        with tf.variable_scope("model", initializer=initializer):
+        with tf.variable_scope(MODEL_SCOPE_NAME, initializer=initializer):
             self._build_graph()
 
-        saved_variables = [v for v in tf.global_variables() if not v.name.startswith("lstm_state")]
+        # Don't save the current lstm state
+        saved_variables = [v for v in tf.global_variables()
+                           if not v.name.startswith(LSTM_STATE_SCOPE_NAME)]
         self.saver = tf.train.Saver(saved_variables, max_to_keep=3)
 
     def train_step(self, session, inputs, targets, update_state=True):
@@ -141,7 +147,7 @@ class GeneratingLSTM:
         self.reset_state_op = get_state_reset_op(state, self.cell,
                                                  self.max_batch_size)
         # Add operations to freeze and unfreeze the state
-        with tf.variable_scope("lstm_state"):
+        with tf.variable_scope(LSTM_STATE_SCOPE_NAME):
             state_frozen = get_state_variables(self.cell, self.max_batch_size)
             self.freeze_state_op = get_state_update_op(state_frozen, state)
             self.unfreeze_state_op = get_state_update_op(state, state_frozen)

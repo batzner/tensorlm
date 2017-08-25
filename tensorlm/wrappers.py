@@ -4,10 +4,13 @@ from time import time
 import numpy as np
 import tensorflow as tf
 
+from tensorlm.common.log import get_logger
 from tensorlm.common.util import restore_possible
-from tensorlm.dataset import Vocabulary, DatasetIterator
+from tensorlm.dataset import Vocabulary, Dataset
 from tensorlm.model import GeneratingLSTM
 from tensorlm.trainlog import TrainState
+
+LOGGER = get_logger(__name__)
 
 
 class _BaseLM:
@@ -50,42 +53,47 @@ class _BaseLM:
         train_state = TrainState.try_load_from_dir(self.save_dir)
         last_save_time = time()
 
+        train_set = Dataset(text_path, self.vocab, batch_size,
+                            self.num_timesteps)
+
         while (train_state.epoch <= max_epochs and
                    (train_state.global_step <= max_steps or not max_steps)):
 
-            # Do an epoch
-            for inputs, targets in DatasetIterator(text_path, self.vocab, batch_size,
-                                                   self.num_timesteps):
-                loss = self.tf_model.train_step(tf_session, inputs, targets)
-                train_state.train_step_done(loss, log_interval=log_interval, print_log=print_logs)
+            batch = train_set.get_batch(train_state.step_in_epoch)
 
-                # Evaluate
-                if evaluate_interval and train_state.global_step % evaluate_interval == 0:
-                    dev_loss = self.evaluate(tf_session, evaluate_text_path)
-                    train_state.log_dev_loss(dev_loss, print_log=print_logs)
+            # Check if the epoch end was reached
+            if not batch:
+                train_state.epoch_done()
+                train_state.step_in_epoch = 0
+                continue
 
-                # Sample
-                if sample_interval and train_state.global_step % sample_interval == 0:
-                    sampled = sample_prime + self.sample(tf_session, sample_prime)
-                    train_state.log_sampled(sampled, print_log=print_logs)
+            inputs, targets = batch
+            loss = self.tf_model.train_step(tf_session, inputs, targets)
 
-                # Save the model and trainstate
-                if (self.save_dir and save_interval_hours and
-                                time() - last_save_time > save_interval_hours * 3600):
-                    last_save_time = time()
-                    self.tf_model.save(tf_session, self.save_dir)
-                    train_state.save_to_dir(self.save_dir)
+            # Increase the global step and step in epoch
+            train_state.train_step_done(loss, log_interval=log_interval, print_log=print_logs)
 
-                # Check break conditions within the epoch
-                if max_steps and train_state.global_step > max_steps:
-                    break
+            # Evaluate
+            if evaluate_interval and train_state.global_step % evaluate_interval == 0:
+                dev_loss = self.evaluate(tf_session, evaluate_text_path)
+                train_state.log_dev_loss(dev_loss, print_log=print_logs)
 
-            train_state.epoch_done()
+            # Sample
+            if sample_interval and train_state.global_step % sample_interval == 0:
+                sampled = sample_prime + self.sample(tf_session, sample_prime)
+                train_state.log_sampled(sampled, print_log=print_logs)
+
+            # Save the model and trainstate
+            if (self.save_dir and save_interval_hours and
+                            time() - last_save_time > save_interval_hours * 3600):
+                last_save_time = time()
+                self.tf_model.save(tf_session, self.save_dir)
+                train_state.save_to_dir(self.save_dir)
 
     def evaluate(self, tf_session, text_path):
-        dataset_iter = DatasetIterator(text_path, self.vocab, batch_size=1,
-                                       num_timesteps=self.num_timesteps)
-        loss = self.tf_model.evaluate(tf_session, dataset_iter)
+        dataset = Dataset(text_path, self.vocab, batch_size=1,
+                          num_timesteps=self.num_timesteps)
+        loss = self.tf_model.evaluate(tf_session, dataset)
         return loss
 
     def sample(self, tf_session, prime):

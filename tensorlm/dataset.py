@@ -5,9 +5,11 @@ from collections import Counter
 import math
 from nltk.tokenize import RegexpTokenizer
 
+from tensorlm.common.log import get_logger
 from tensorlm.common.tokens import PAD_TOKEN, UNK_TOKEN
 from tensorlm.common.util import get_chunks
 
+LOGGER = get_logger(__name__)
 VOCAB_FILE_NAME = "vocab.json"
 
 
@@ -24,7 +26,7 @@ def tokenize(sentence, level):
         raise ValueError("Unknown token level: {}".format(level))
 
 
-class DatasetIterator:
+class Dataset:
     def __init__(self, path, vocab, batch_size, num_timesteps, bytes_in_memory=1000000):
         self.path = path
         self.vocab = vocab
@@ -32,13 +34,14 @@ class DatasetIterator:
         self.num_timesteps = num_timesteps
         self.bytes_in_memory = bytes_in_memory
 
-        self.current_iter_batch = 0
-
         self.text_iter = TextIterator(self.path, self.vocab.level, bytes_in_memory)
         self.next_batch_index_to_load = 0
         self.index_to_batch = {}
 
     def get_batch(self, batch_index):
+        # Returns None if the batch_index exceeds the number of batches in the text / at the
+        # end of an epoch
+
         if batch_index in self.index_to_batch:
             return self.index_to_batch[batch_index]
 
@@ -48,12 +51,16 @@ class DatasetIterator:
             self.text_iter = TextIterator(self.path, self.vocab.level, self.bytes_in_memory)
             self.next_batch_index_to_load = 0
 
-        # Load from the text iterator until the current_batch_index equals the batch_index
-        tokens = self.text_iter.__next__()
-        self.update_batches(tokens)
-        return self.get_batch(batch_index)
+        try:
+            # Load from the text iterator until the current_batch_index equals the batch_index
+            tokens = self.text_iter.__next__()
+            self._update_batches(tokens)
+            return self.get_batch(batch_index)
+        except StopIteration:
+            # We finished an epoch
+            return None
 
-    def batch_tokens_to_ids(self, batch):
+    def _batch_tokens_to_ids(self, batch):
         # Translate an 2D array of tokens to ids
         batch_ids = []
         for batch_item in batch:
@@ -61,20 +68,21 @@ class DatasetIterator:
             batch_ids.append(ids)
         return batch_ids
 
-    def update_batches(self, tokens):
+    def _update_batches(self, tokens):
         self.index_to_batch = {}
 
-        batches = self.split_tokens_in_batches(tokens)
+        batches = self._split_tokens_in_batches(tokens)
         for batch_inputs, batch_targets in batches:
             # Lookup the tokens to ids
-            batch_input_ids = self.batch_tokens_to_ids(batch_inputs)
-            batch_target_ids = self.batch_tokens_to_ids(batch_targets)
+            batch_input_ids = self._batch_tokens_to_ids(batch_inputs)
+            batch_target_ids = self._batch_tokens_to_ids(batch_targets)
 
             # Each batch is a tuple with inputs and targets
             self.index_to_batch[self.next_batch_index_to_load] = (batch_input_ids, batch_target_ids)
+
             self.next_batch_index_to_load += 1
 
-    def split_tokens_in_batches(self, tokens):
+    def _split_tokens_in_batches(self, tokens):
         # Start the rows of batches at equidistant points in the tokens
 
         # The batches within a set of tokens (about 1MB of size) should follow each other exactly.
@@ -121,6 +129,7 @@ class DatasetIterator:
         return batches
 
     def __iter__(self):
+        self.current_iter_batch = 0
         return self
 
     def __next__(self):
