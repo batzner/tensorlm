@@ -56,7 +56,6 @@ class BaseLM:
         train_set = Dataset(text_path, self.vocab, batch_size,
                             self.num_timesteps)
 
-        LOGGER.info()
         while (train_state.epoch <= max_epochs and
                    (not max_steps or train_state.global_step <= max_steps)):
 
