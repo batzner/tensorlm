@@ -1,3 +1,18 @@
+# Copyright 2017 Kilian Batzner All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+"""TensorFlow model of an LSTM for sequence generation."""
 import os
 
 import numpy as np
@@ -8,7 +23,8 @@ from tensorlm.common.lstm_util import get_state_variables_for_batch, \
 from tensorlm.common.tokens import PAD_TOKEN
 from tensorlm.dataset import tokenize
 
-MODEL_FILE_NAME = "model"
+# Prefix of the files stored by tf.train.Saver
+MODEL_FILE_PREFIX = "model"
 
 # We distinguish between the learned model variables and the variables that store the current state
 MODEL_SCOPE_NAME = "model"
@@ -16,25 +32,55 @@ LSTM_STATE_SCOPE_NAME = "lstm_state"
 
 
 class GeneratingLSTM:
+    """"""
+
     def __init__(self, vocab_size, neurons_per_layer, num_layers, max_batch_size,
                  output_keep_prob=0.5, max_gradient_norm=5,
                  initial_learning_rate=0.001, forward_only=False):
+        """Creates a new LSTM for sequence generation.
+
+        This constructor builds the computational graph of the LSTM. The variables need to be
+        initialized afterwards, for example with the tf.global_variables_initializer function or by
+        loading the values from a saved TF model file.
+
+        Args:
+          vocab_size (int): The input vector size
+          neurons_per_layer (int): The number of units in each LSTM cell / layer
+          num_layers (int): The number of LSTM cells / layers
+          max_batch_size (int): The number of batches, for which the computational graph will be created.
+            You can also feed a lower number (1 to max_batch_size) of batches during training or
+            sampling. The computational graph's memory footprint grows linearly with this value.
+          output_keep_prob (float): The probability of keeping the output for each neuron, i.e.
+            1 - dropout_probability. This will only be used during training. During testing, all
+            neurons keep their output.
+          max_gradient_norm (float): The maximum L2 norm of the gradient during back-propagation.
+          initial_learning_rate (float): The initial learning rate for the RMSProp optimization.
+          forward_only (bool): If True, the graph will only be built for forward propagation. Use
+            this for already trained models, whose parameters are loaded from a saved file. Setting
+            this value to True will reduce the computational graph's memory footprint to about 50%.
+        """
         self.neurons_per_layer = neurons_per_layer
         self.num_layers = num_layers
         self.vocab_size = vocab_size
         self.max_batch_size = max_batch_size
         self.max_gradient_norm = max_gradient_norm
-        self.output_keep_prob = float(output_keep_prob)
-        self.output_keep_var = tf.Variable(output_keep_prob, trainable=False, name="output_keep")
-        self.learning_rate = tf.Variable(initial_learning_rate, trainable=False, name="lr")
-        self.forward_only = forward_only
+        self.output_keep_prob = output_keep_prob
+        self.output_keep_var = tf.Variable(self.output_keep_prob, trainable=False,
+                                           name="output_keep", dtype=tf.float32)
+        self.learning_rate = tf.Variable(initial_learning_rate, trainable=False, name="lr",
+                                         dtype=tf.float32)
+
+        # This will be increased with each run of self.optimizer and can be used when saving the
+        # model with self.saver.save(session, save_path, global_step=self.global_step)
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
+        # Initialize all model variables with the Xavier Initializer
         initializer = tf.contrib.layers.xavier_initializer()
         with tf.variable_scope(MODEL_SCOPE_NAME, initializer=initializer):
-            self._build_graph()
+            self._build_graph(forward_only)
 
-        # Don't save the current lstm state
+        # Define a saver for all variables that have been defined so far. Don't save the current
+        # LSTM state.
         saved_variables = [v for v in tf.global_variables()
                            if not v.name.startswith(LSTM_STATE_SCOPE_NAME)]
         self.saver = tf.train.Saver(saved_variables, max_to_keep=3)
@@ -101,10 +147,10 @@ class GeneratingLSTM:
         session.run(self.reset_state_op)
 
     def save(self, session, save_dir):
-        save_path = os.path.join(save_dir, MODEL_FILE_NAME)
+        save_path = os.path.join(save_dir, MODEL_FILE_PREFIX)
         self.saver.save(session, save_path, global_step=self.global_step)
 
-    def _build_graph(self):
+    def _build_graph(self, forward_only):
         # Build the central LSTM
         def layer():
             # See https://stackoverflow.com/a/44882273/2628369
@@ -118,7 +164,7 @@ class GeneratingLSTM:
 
         self.targets = tf.placeholder(tf.int32, [None, None])
         self.loss = self._build_loss()
-        if not self.forward_only:
+        if not forward_only:
             self.optimize = self._build_optimizer()
 
     def _build_prediction(self):
