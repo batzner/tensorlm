@@ -1,6 +1,6 @@
 vocabulary_size = 10000
 num_layers = 3
-num_neurons = 250
+num_neurons = 400
 
 num_first_layer = 4 * (num_neurons * (vocabulary_size + num_neurons) + num_neurons)
 num_other_layer = 4 * (num_neurons * 2 * num_neurons + num_neurons)

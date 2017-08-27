@@ -81,9 +81,6 @@ class Dataset:
             self.index_to_batch[self.next_batch_index_to_load] = (batch_input_ids, batch_target_ids)
             self.next_batch_index_to_load += 1
 
-        LOGGER.debug("Loaded batches %d to %d", min(self.index_to_batch.keys()),
-                     max(self.index_to_batch.keys()))
-
     def _split_tokens_in_batches(self, tokens):
         # Start the rows of batches at equidistant points in the tokens
 

@@ -91,7 +91,7 @@ class BaseLM:
                 train_state.save_to_dir(self.save_dir)
 
     def evaluate(self, tf_session, text_path):
-        dataset = Dataset(text_path, self.vocab, batch_size=1,
+        dataset = Dataset(text_path, self.vocab, batch_size=self.max_batch_size,
                           num_timesteps=self.num_timesteps)
         loss = self.tf_model.evaluate(tf_session, dataset)
         return loss
