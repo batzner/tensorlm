@@ -2,7 +2,9 @@
 
 Generate Shakespeare poems with 4 lines of code.
 
-![](http://i.cubeupload.com/8Cm5RQ.gif)
+[![showcase of the package](http://i.cubeupload.com/8Cm5RQ.gif)](http://www.mlowl.com/post/character-language-model-lstm-tensorflow/)
+[Source](http://www.mlowl.com/post/character-language-model-lstm-tensorflow/)
+
 
 ## Installation
 
