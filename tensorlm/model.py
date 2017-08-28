@@ -43,17 +43,17 @@ class GeneratingLSTM:
 
     Use tensorlm.dataset.Vocabulary for translating the ids to tokens.
 
+    To prevent the model from forgetting its memory state between train_steps, we store the LSTM's
+    cell and hidden state. So, you can feed a long text chunk by chunk into the model and it updates
+    its state after each feed. You can reset the LSTM's cell and hidden state by calling
+    reset_state().
+
     For training and evaluation you can use varying batch sizes and number of time steps, even
     between function calls to train_step(). The number of time steps denotes the number of steps
     that the LSTM is unrolled for. See tf.nn.dynamic_rnn for more info. The batch size and number of
     time steps are determined dynamically based on the input size.
 
     For training, RMSProp is used.
-
-    To prevent the model from forgetting its memory state between train_steps, we store the LSTM's
-    cell and hidden state. So, you can feed a long text chunk by chunk into the model and it updates
-    its state after each feed. You can reset the LSTM's cell and hidden state by calling
-    reset_state().
 
     For saving / reloading the model to / from the filesystem, use the self.saver member of the
     instance. This will be a tf.train.Saver. See the TensorFlow documentation for info about how to
@@ -239,24 +239,29 @@ class GeneratingLSTM:
         """Builds the whole computational graph for the LSTM.
 
         Args:
-            forward_only: If True, the graph will also contain back-propagation operations for
-                improving the model's trainable parameters.
+            forward_only (bool): If True, the graph will also contain back-propagation operations
+                for improving the model's trainable parameters.
         """
 
-        # Build the central LSTM
-        def layer():
-            # See https://stackoverflow.com/a/44882273/2628369 for why this local function is
-            # necessary
-            cell = tf.contrib.rnn.LSTMCell(self.neurons_per_layer)
-            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self._output_keep_var)
-            return cell
-
-        self._cell = tf.contrib.rnn.MultiRNNCell([layer() for _ in range(self.num_layers)])
+        self._cell = tf.contrib.rnn.MultiRNNCell(
+            [self._build_lstm_layer() for _ in range(self.num_layers)])
         self._logits = self._build_prediction()
         self._loss = self._build_loss()
 
         if not forward_only:
             self._optimize = self._build_optimizer()
+
+    def _build_lstm_layer(self):
+        """Returns a dropout-wrapped LSTM-cell.
+
+        See https://stackoverflow.com/a/44882273/2628369 for why this local function is necessary.
+
+        Returns:
+            tf.contrib.rnn.DropoutWrapper: The dropout-wrapped LSTM cell.
+        """
+        cell = tf.contrib.rnn.LSTMCell(self.neurons_per_layer)
+        cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self._output_keep_var)
+        return cell
 
     def _build_prediction(self):
         """Builds the forward-propagation part of the computational graph.

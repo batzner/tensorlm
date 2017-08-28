@@ -11,7 +11,7 @@ with tf.Session() as session:
                 evaluate_interval=1000, evaluate_text_path="datasets/sherlock/valid.txt",
                 sample_interval=1000, save_interval_hours=0.5)
 
-    generated = model.sample(session, "The ")
+    generated = model.sample(session, "The ", num_steps=100)
     print("The " + generated)
 
     dev_loss = model.evaluate(session, "datasets/sherlock/valid.txt")
