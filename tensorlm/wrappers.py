@@ -12,6 +12,8 @@ from tensorlm.trainlog import TrainState
 
 LOGGER = get_logger(__name__)
 
+# Prefix of the files stored by tf.train.Saver
+MODEL_FILE_PREFIX = "model"
 
 class BaseLM:
     def __init__(self, tf_session, level, train_text_path, max_vocab_size, neurons_per_layer,
@@ -83,11 +85,14 @@ class BaseLM:
                 sampled = sample_prime + self.sample(tf_session, sample_prime, num_steps=100)
                 train_state.log_sampled(sampled, print_log=print_logs)
 
-            # Save the model and trainstate
+            # Save the model and train state
             if (self.save_dir and save_interval_hours and
                             time() - last_save_time > save_interval_hours * 3600):
                 last_save_time = time()
-                self.tf_model.save(tf_session, self.save_dir)
+                # Save the model
+                save_path = os.path.join(self.save_dir, MODEL_FILE_PREFIX)
+                self.tf_model.saver.save(tf_session, save_path)
+                # Save the train state
                 train_state.save_to_dir(self.save_dir)
 
     def evaluate(self, tf_session, text_path):
