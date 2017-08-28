@@ -6,12 +6,14 @@ import math
 from nltk.tokenize import RegexpTokenizer
 
 from tensorlm.common.log import get_logger
-from tensorlm.common.tokens import PAD_TOKEN, UNK_TOKEN
 from tensorlm.common.util import get_chunks
 
 LOGGER = get_logger(__name__)
 VOCAB_FILE_NAME = "vocab.json"
 
+# Special tokens to include in the vocabulary
+PAD_TOKEN = "_PAD"
+UNK_TOKEN = "_UNK"
 
 def tokenize(sentence, level):
     if level == "char":

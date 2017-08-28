@@ -4,7 +4,7 @@ Generate Shakespeare poems with 4 lines of code.
 
 ## Installation
 
-    pip install tensorflow
+    pip install tensorflow>=1.0
     pip install tensorlm
     
 ## Usage
@@ -35,7 +35,5 @@ This will output:
     Epoch: 1, Step: 400, Avg. Train Loss: 2.8836493492126465
     Epoch: 1, Step: 500, Avg. Train Loss: 2.775566816329956
     The e e e e e e e e e e e e e e e e e ee ee ee ee ee e e e e e e e e e e e e ee ee ee ee ee e e e e e e e
-    
-## Requirements
 
-    tensorflow >= 1.0
+

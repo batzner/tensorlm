@@ -25,8 +25,7 @@ import tensorflow as tf
 
 from tensorlm.common.lstm_util import get_state_variables_for_batch, \
     get_state_update_op, get_state_variables, get_state_reset_op
-from tensorlm.common.tokens import PAD_TOKEN
-from tensorlm.dataset import tokenize
+from tensorlm.dataset import tokenize, PAD_TOKEN
 
 # We distinguish between the learned model variables and the variables that store the current state
 MODEL_SCOPE_NAME = "model"
@@ -259,6 +258,8 @@ class GeneratingLSTM:
         Returns:
             tf.contrib.rnn.DropoutWrapper: The dropout-wrapped LSTM cell.
         """
+        from tensorflow.contrib.rnn import LSTMCell
+        LSTMCell
         cell = tf.contrib.rnn.LSTMCell(self.neurons_per_layer)
         cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self._output_keep_var)
         return cell
@@ -278,7 +279,7 @@ class GeneratingLSTM:
         # inputs_one_hot will have shape (batch_size, num_timesteps, vocab_size)
         batch_size, num_timesteps = tf.shape(self._inputs)[0], tf.shape(self._inputs)[1]
 
-        # For each layer, get the initial state. self.state will be a tuple of LSTMStateTuples. Get
+        # For each layer, get the initial state. state will be a tuple of LSTMStateTuples. Get
         # the variables in their own scope so that, we can exclude them from being saved.
         with tf.variable_scope("lstm_state"):
             state = get_state_variables(self._cell, self.max_batch_size)
