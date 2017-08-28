@@ -53,7 +53,7 @@ tf.app.flags.DEFINE_boolean("evaluate", False,
 FLAGS = tf.app.flags.FLAGS
 
 
-def sample_interactive(tf_session, model, num_steps):
+def _sample_interactive(tf_session, model, num_steps):
     # Read the input with >
     sys.stdout.write('> ')
     sys.stdout.flush()
@@ -100,7 +100,7 @@ def main(_):
             print("Validation loss: {}".format(loss))
 
         elif FLAGS.sample:
-            sample_interactive(session, model, FLAGS.sample_steps)
+            _sample_interactive(session, model, FLAGS.sample_steps)
 
 
 if __name__ == "__main__":

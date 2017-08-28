@@ -2,6 +2,8 @@
 
 Generate Shakespeare poems with 4 lines of code.
 
+![](https://media.giphy.com/media/xT9IgMvlPUmRkkDJmM/giphy.gif)
+
 ## Installation
 
     pip install tensorflow>=1.0

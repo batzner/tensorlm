@@ -15,6 +15,7 @@ VOCAB_FILE_NAME = "vocab.json"
 PAD_TOKEN = "_PAD"
 UNK_TOKEN = "_UNK"
 
+
 def tokenize(sentence, level):
     if level == "char":
         # No need for tokenizing
