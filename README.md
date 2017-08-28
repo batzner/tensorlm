@@ -2,7 +2,7 @@
 
 Generate Shakespeare poems with 4 lines of code.
 
-![](https://media.giphy.com/media/xT9IgMvlPUmRkkDJmM/giphy.gif)
+![](http://i.cubeupload.com/8Cm5RQ.gif)
 
 ## Installation
 
