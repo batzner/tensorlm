@@ -146,6 +146,10 @@ class GeneratingLSTM:
 
         return loss
 
+    def evaluate_step(self,):
+        # TODO:
+        pass
+
     def evaluate(self, session, dataset):
         """Determines the mean cross-entropy loss on a dataset.
 
@@ -163,7 +167,7 @@ class GeneratingLSTM:
         """
 
         # Disable dropout and save the LSTM state before overwriting it with sampling
-        self._on_pause_training(session)
+        self.on_pause_training(session)
 
         # Test the performance on the validation dataset
         total_loss = 0
@@ -176,7 +180,7 @@ class GeneratingLSTM:
             step_count += 1
 
         # Re-enable dropout and restore the LSTM training state
-        self._on_resume_training(session)
+        self.will_resume_training(session)
         return total_loss / step_count
 
     def sample(self, session, vocabulary, prime, num_steps=100):
@@ -197,8 +201,11 @@ class GeneratingLSTM:
         Returns:
             str: The generated text.
         """
+
+        # TODO: Change to ids
+
         # Disable dropout and save the LSTM state before overwriting it with sampling
-        self._on_pause_training(session)
+        self.on_pause_training(session)
 
         # Sample from the model
         prime_tokens = tokenize(prime, level=vocabulary.level)
@@ -223,7 +230,7 @@ class GeneratingLSTM:
         output_tokens = vocabulary.ids_to_tokens(outputs)
 
         # Re-enable dropout and restore the LSTM training state
-        self._on_resume_training(session)
+        self.will_resume_training(session)
         return ''.join(output_tokens)
 
     def reset_state(self, session):
@@ -258,8 +265,6 @@ class GeneratingLSTM:
         Returns:
             tf.contrib.rnn.DropoutWrapper: The dropout-wrapped LSTM cell.
         """
-        from tensorflow.contrib.rnn import LSTMCell
-        LSTMCell
         cell = tf.contrib.rnn.LSTMCell(self.neurons_per_layer)
         cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self._output_keep_var)
         return cell
@@ -351,7 +356,7 @@ class GeneratingLSTM:
         optimizer = tf.train.RMSPropOptimizer(self._learning_rate)
         return optimizer.apply_gradients(zip(grads, tvars))
 
-    def _on_pause_training(self, session):
+    def on_pause_training(self, session):
         """Disables dropout and freezes the LSTM's current memory state.
 
         This function prepares the model for doing anything else during training. It disables
@@ -367,10 +372,10 @@ class GeneratingLSTM:
         # Reset the state for sampling or evaluation
         self.reset_state(session)
 
-    def _on_resume_training(self, session):
+    def will_resume_training(self, session):
         """Enables dropout and unfreezes the saved memory state.
 
-        See _on_pause_training for info about the saved memory state.
+        See on_pause_training for info about the saved memory state.
 
         Args:
             session (tf.Session): The TF session to run the operations in.
@@ -387,8 +392,8 @@ class GeneratingLSTM:
                 and contain only integers. The batch size and number of timesteps are determined
                 dynamically, so the shape of inputs can vary between calls of this function.
             update_state (bool): If True, this will update the LSTM's memory state. If this function
-                gets called during training, make sure to call it between _on_pause_training and
-                _on_resume_training.
+                gets called during training, make sure to call it between on_pause_training and
+                will_resume_training.
 
         Returns:
             np.ndarray: A batch of outputs with the same shape and data type as the inputs

@@ -1,3 +1,25 @@
+# Copyright (c) 2017 Kilian Batzner All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# ==============================================================================
+"""For logging and saving stats about the training progress."""
+
 import datetime
 import json
 import os
@@ -9,9 +31,7 @@ from time import time
 
 from tensorlm.common.log import get_logger
 
-logger = get_logger(__name__)
-
-TRAINSTATE_FILE_NAME = "trainlog.json"
+LOGGER = get_logger(__name__)
 
 
 class Log:
@@ -61,6 +81,8 @@ class Log:
 
 
 class TrainState:
+    trainstate_file_name = "trainlog.json"
+
     def __init__(self, global_step=0, epoch=1, step_in_epoch=0, log=None, start_time=None):
         self.global_step = global_step
         self.epoch = epoch
@@ -86,7 +108,7 @@ class TrainState:
             self._log.log_loss_train(self.global_step, avg_loss, interval_seconds)
 
             if print_log:
-                logger.info('Epoch %d Step %d Avg. Loss: %f Time: %s' %
+                LOGGER.info('Epoch %d Step %d Avg. Loss: %f Time: %s' %
                             (self.epoch, self.global_step, avg_loss,
                              self._log.get_time_since_start()))
 
@@ -97,12 +119,12 @@ class TrainState:
     def log_dev_loss(self, loss, print_log=True):
         self._log.log_loss_valid(self.global_step, loss)
         if print_log:
-            logger.info('Validation loss: %f' % loss)
+            LOGGER.info('Validation loss: %f' % loss)
 
     def log_sampled(self, text, print_log=True):
         self._log.log_sampled(self.global_step, text)
         if print_log:
-            logger.info('Sample: ' + text)
+            LOGGER.info('Sample: ' + text)
 
     def to_json(self):
         return {
@@ -124,13 +146,13 @@ class TrainState:
         return obj
 
     def save_to_dir(self, out_dir):
-        out_path = os.path.join(out_dir, TRAINSTATE_FILE_NAME)
+        out_path = os.path.join(out_dir, TrainState.trainstate_file_name)
         with open(out_path, "w") as f:
             json.dump(self.to_json(), f, default=json_encode)
 
     @staticmethod
     def try_load_from_dir(out_dir):
-        out_path = os.path.join(out_dir, TRAINSTATE_FILE_NAME)
+        out_path = os.path.join(out_dir, TrainState.trainstate_file_name)
         if os.path.isfile(out_path):
             return TrainState.load_from_dir(out_dir)
         else:
@@ -138,7 +160,7 @@ class TrainState:
 
     @staticmethod
     def load_from_dir(out_dir):
-        out_path = os.path.join(out_dir, TRAINSTATE_FILE_NAME)
+        out_path = os.path.join(out_dir, TrainState.trainstate_file_name)
         with open(out_path) as f:
             json_dict = json.load(f, object_hook=json_decode)
         return TrainState.from_json(json_dict)

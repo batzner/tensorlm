@@ -1,19 +1,44 @@
+# Copyright (c) 2017 Kilian Batzner All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# ==============================================================================
+"""Command line interface for the wrappers in tensorlm.wrappers
+
+This module builds the CLI for training and evaluating a Char / Word Language Model and sampling
+from it.
+"""
+
 import sys
 import os
 import json
 
 import tensorflow as tf
 
-# Model parameters
 from tensorlm.wrappers import BaseLM
 
+# Model parameters
 tf.app.flags.DEFINE_string("level", "char", "Level of tokenization. Either 'char' or 'word'.")
 tf.app.flags.DEFINE_integer("max_vocab_size", 1000,
                             "Maximum size of the input and output vocabulary.")
 tf.app.flags.DEFINE_integer("neurons_per_layer", 100, "Number of neurons per LSTM-layer")
 tf.app.flags.DEFINE_integer("num_layers", 3, "Number of LSTM-layers")
-tf.app.flags.DEFINE_integer("max_batch_size", 10, "Maximum number of batches that are fed to the "
-                                                  "model at once")
+tf.app.flags.DEFINE_integer("batch_size", 10, "The batch size for feeding inputs.")
 tf.app.flags.DEFINE_integer("num_timesteps", 5, "Number of steps that the LSTM is unrolled for")
 
 # General parameters
@@ -54,6 +79,8 @@ FLAGS = tf.app.flags.FLAGS
 
 
 def _sample_interactive(tf_session, model, num_steps):
+    # Starts an interactive sampling loop
+
     # Read the input with >
     sys.stdout.write('> ')
     sys.stdout.flush()
@@ -68,13 +95,15 @@ def _sample_interactive(tf_session, model, num_steps):
 
 
 def main(_):
+    """Main function parsing the arguments and doing training, evaluation or sampling"""
     with tf.Session() as session:
+        # Create the model
         model = BaseLM(session, level=FLAGS.level,
                        train_text_path=FLAGS.train_text_path,
                        max_vocab_size=FLAGS.max_vocab_size,
                        neurons_per_layer=FLAGS.neurons_per_layer,
                        num_layers=FLAGS.num_layers,
-                       max_batch_size=FLAGS.max_batch_size,
+                       batch_size=FLAGS.batch_size,
                        num_timesteps=FLAGS.num_timesteps,
                        save_dir=FLAGS.save_dir)
 
