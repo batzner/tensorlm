@@ -10,7 +10,7 @@ Generate Shakespeare poems with 4 lines of code.
 ## Usage
 
     import tensorflow as tf
-    from tensorlm import WordLM
+    from tensorlm import CharLM
         
     with tf.Session() as session:
         
