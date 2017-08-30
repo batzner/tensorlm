@@ -132,16 +132,16 @@ crashlytics-build.properties
 fabric.properties
 
 # CUSTOM
-.idea
-datasets
-results
 .DS_Store
-resources
-models
+.idea
+
+datasets/*
+results
+local
 venv-gpu
 
 
-
 !.keep
-!/datasets/sherlock/tinytrain.txt
-!/datasets/sherlock/tinyvalid.txt
+datasets/sherlock/*
+!datasets/sherlock/tinytrain.txt
+!datasets/sherlock/tinyvalid.txt
