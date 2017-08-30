@@ -39,13 +39,13 @@ This should output something like:
 ## Command Line Usage
 
 **Train:** 
-`python3 -m tensorlm.cli --train=True --level=char --train_text_path=datasets/sherlock/train.txt --max_vocab_size=96 --neurons_per_layer=100 --num_layers=3 --batch_size=10 --num_timesteps=160 --save_dir=out/model --max_epochs=300 --save_interval_hours=0.5`
+`python3 -m tensorlm.cli --train=True --level=char --train_text_path=datasets/sherlock/tinytrain.txt --max_vocab_size=96 --neurons_per_layer=100 --num_layers=2 --batch_size=10 --num_timesteps=15 --save_dir=out/model --max_epochs=300 --save_interval_hours=0.5`
 
 **Sample:**
 `python3 -m tensorlm.cli --sample=True --level=char --neurons_per_layer=400 --num_layers=3 --num_timesteps=160 --save_dir=out/model`
 
 **Evaluate:**
-`python3 -m tensorlm.cli --evaluate=True --level=char --evaluate_text_path=datasets/sherlock/valid.txt --neurons_per_layer=400 --num_layers=3 --batch_size=10 --num_timesteps=160 --save_dir=out/model`
+`python3 -m tensorlm.cli --evaluate=True --level=char --evaluate_text_path=datasets/sherlock/tinyvalid.txt --neurons_per_layer=400 --num_layers=3 --batch_size=10 --num_timesteps=160 --save_dir=out/model`
 
 
 See `python3 -m tensorlm.cli --help` for all options.
