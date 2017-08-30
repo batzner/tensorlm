@@ -6,8 +6,10 @@ Generate Shakespeare poems with 4 lines of code.
 
 ## Installation
 
-    pip install tensorflow>=1.1
-    pip install tensorlm
+`tensorlm` is written in / for Python 3.4+
+
+    pip3 install tensorflow>=1.1
+    pip3 install tensorlm
     
 ## Basic Usage
 
