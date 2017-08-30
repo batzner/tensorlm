@@ -143,3 +143,5 @@ venv-gpu
 
 
 !.keep
+!/datasets/sherlock/tinytrain.txt
+!/datasets/sherlock/tinyvalid.txt

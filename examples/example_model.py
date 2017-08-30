@@ -4,8 +4,8 @@ import tensorflow as tf
 
 from tensorlm import Vocabulary, Dataset, GeneratingLSTM
 
-TEXT_PATH = "datasets/sherlock/train.txt"
-DEV_PATH = "datasets/sherlock/valid.txt"
+TEXT_PATH = "datasets/sherlock/tinytrain.txt"
+DEV_PATH = "datasets/sherlock/tinyvalid.txt"
 BATCH_SIZE = 20
 NUM_TIMESTEPS = 30
 
@@ -21,7 +21,7 @@ with tf.Session() as session:
                            neurons_per_layer=100,
                            num_layers=2,
                            max_batch_size=BATCH_SIZE,
-                           output_keep_prob=1)
+                           output_keep_prob=0.8)
 
     # Initialize all defined TF Variables
     session.run(tf.global_variables_initializer())
@@ -43,6 +43,6 @@ with tf.Session() as session:
                     epoch, step, loss, dev_loss))
 
                 # Sample from the model from time to time
-                print("The " + model.sample(session, vocab, "The "))
+                print("The " + model.sample_text(session, vocab, "The "))
 
             step += 1

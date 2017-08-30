@@ -36,6 +36,9 @@ LOGGER = get_logger(__name__)
 PAD_TOKEN = "_PAD"
 UNK_TOKEN = "_UNK"
 
+PAD_ID = 0
+UNK_ID = 1
+
 
 def tokenize(text, level):
     """Tokenize a text into a list of strings.
@@ -364,8 +367,6 @@ class Vocabulary:
             Vocabulary: The created vocabulary.
         """
 
-        LOGGER.info("Creating vocabulary from %s", text_path)
-
         # Get the most common tokens from the text
         token_counter = Counter()
         for tokens in TextIterator(text_path, level, bytes_in_memory=1000000):
@@ -373,8 +374,8 @@ class Vocabulary:
 
         # Get the id for each of the most common tokens
         token_to_id = {
-            PAD_TOKEN: 0,
-            UNK_TOKEN: 1
+            PAD_TOKEN: PAD_ID,
+            UNK_TOKEN: UNK_ID,
         }
         for token, _ in token_counter.most_common(max_vocab_size - len(token_to_id)):
             token_to_id[token] = len(token_to_id)

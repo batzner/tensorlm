@@ -152,6 +152,9 @@ class TrainState:
 
     @staticmethod
     def try_load_from_dir(out_dir):
+        if not out_dir:
+            return TrainState()
+
         out_path = os.path.join(out_dir, TrainState.trainstate_file_name)
         if os.path.isfile(out_path):
             return TrainState.load_from_dir(out_dir)

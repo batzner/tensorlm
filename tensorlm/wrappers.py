@@ -187,7 +187,7 @@ class BaseLM:
         Returns:
             str: The generated sequence.
         """
-        return self.tf_model.sample(tf_session, self.vocab, prime, num_steps)
+        return self.tf_model.sample_text(tf_session, self.vocab, prime, num_steps)
 
 
 class CharLM(BaseLM):

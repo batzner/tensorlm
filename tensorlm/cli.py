@@ -86,7 +86,7 @@ def _sample_interactive(tf_session, model, num_steps):
     sys.stdout.flush()
     input_sequence = sys.stdin.readline().strip()
     while input_sequence:
-        sampled = model.sample(tf_session, input_sequence, num_steps)
+        sampled = model.sample_text(tf_session, input_sequence, num_steps)
         # Print the sampled text to the console
         print(sampled)
         print('> ', end='')

@@ -25,7 +25,7 @@ import tensorflow as tf
 
 from tensorlm.common.lstm_util import get_state_variables_for_batch, \
     get_state_update_op, get_state_variables, get_state_reset_op
-from tensorlm.dataset import tokenize, PAD_TOKEN
+from tensorlm.dataset import tokenize, PAD_TOKEN, PAD_ID
 
 # We distinguish between the learned model variables and the variables that store the current state
 MODEL_SCOPE_NAME = "model"
@@ -61,7 +61,7 @@ class GeneratingLSTM:
     """
 
     def __init__(self, vocab_size, neurons_per_layer, num_layers, max_batch_size,
-                 output_keep_prob=0.5, max_gradient_norm=5,
+                 output_keep_prob=1, max_gradient_norm=5,
                  initial_learning_rate=0.001, forward_only=False):
         """Creates a new LSTM for sequence generation.
 
@@ -113,7 +113,7 @@ class GeneratingLSTM:
                            if not v.name.startswith(LSTM_STATE_SCOPE_NAME)]
         self.saver = tf.train.Saver(saved_variables, max_to_keep=3)
 
-    def train_step(self, session, inputs, targets, update_state=True):
+    def train_step(self, session, batch_inputs, batch_targets, update_state=True):
         """Runs one training step / back-propagation run and returns the loss.
 
         This method feeds the inputs and targets into the computational graph, determines the loss
@@ -123,19 +123,20 @@ class GeneratingLSTM:
 
         Args:
             session (tf.Session): The TF session to run the operations in.
-            inputs (np.ndarray): A batch of training inputs. Must have the shape
+            batch_inputs (np.ndarray): A batch of training inputs. Must have the shape
                 (batch_size, num_timesteps) and contain only integers.
-            targets (np.ndarray): A batch of training targets. Must have the shape
+            batch_targets (np.ndarray): A batch of training targets. Must have the shape
                 (batch_size, num_timesteps) and contain only integers. For an input batch of
                 [[1,2,3,4]], the targets should be [[2,3,4,?]].
-            update_state (bool): If True, this will update the LSTM's state / memory.
+            update_state (bool): If True, the LSTM's memory state will be updated after feeding the
+                batch inputs, so that the LSTM will use this state before the next feed of inputs.
 
         Returns:
             float: The mean cross-entropy loss on this batch.
         """
 
         # Returns the output tokens for each batch as a 2D ndarray and the loss
-        feed_dict = {self._inputs: inputs, self._targets: targets}
+        feed_dict = {self._inputs: batch_inputs, self._targets: batch_targets}
 
         ops_without_return = [self._optimize]
         if update_state:
@@ -146,9 +147,33 @@ class GeneratingLSTM:
 
         return loss
 
-    def evaluate_step(self,):
-        # TODO:
-        pass
+    def evaluate_step(self, session, batch_inputs, batch_targets, update_state=True):
+        """Determines the mean cross-entropy loss on a batch of inputs and targets.
+
+        Feeds a given batch to the model and compares the model's outputs with the targets using
+        the cross-entropy loss. The batch size and number of timesteps fed at once are given by the
+        batch dimensions.
+
+        Args:
+            session (tf.Session): The TF session to run the operations in.
+            batch_inputs (np.ndarray): A batch of training inputs. Must have the shape
+                (batch_size, num_timesteps) and contain only integers.
+            batch_targets (np.ndarray): A batch of training targets. Must have the shape
+                (batch_size, num_timesteps) and contain only integers. For an input batch of
+                [[1,2,3,4]], the targets should be [[2,3,4,?]].
+            update_state (bool): If True, the LSTM's memory state will be updated after feeding the
+                batch inputs, so that the LSTM will use this state before the next feed of inputs.
+                If this function gets called during training, make sure to call it between
+                on_pause_training and will_resume_training. Thus, the training's memory state will
+                be frozen before and unfrozen after this function call.
+
+        Returns:
+            float: The mean cross-entropy loss on the dataset.
+        """
+        feed_dict = {self._inputs: batch_inputs, self._targets: batch_targets}
+        runs = [self._loss, self._update_state_op if update_state else tf.no_op()]
+        loss, _ = session.run(runs, feed_dict=feed_dict)
+        return loss
 
     def evaluate(self, session, dataset):
         """Determines the mean cross-entropy loss on a dataset.
@@ -174,16 +199,53 @@ class GeneratingLSTM:
         step_count = 0
 
         for batch_inputs, batch_targets in dataset:
-            feed_dict = {self._inputs: batch_inputs, self._targets: batch_targets}
-            loss, _ = session.run([self._loss, self._update_state_op], feed_dict=feed_dict)
-            total_loss += loss
+            total_loss += self.evaluate_step(session, batch_inputs, batch_targets)
             step_count += 1
 
         # Re-enable dropout and restore the LSTM training state
         self.will_resume_training(session)
         return total_loss / step_count
 
-    def sample(self, session, vocabulary, prime, num_steps=100):
+    def sample_ids(self, session, prime_ids, num_steps=100):
+        """Let the model generate a sequence based on a preceding string.
+
+        This method primes the model with the given sequence of token ids. Then, it feeds the model
+        its own output (disgusting, I know) token id by token id and thus lets it generate /
+        complete the sequence. This will result in num_steps generated token_ids
+
+        Args:
+            session (tf.Session): The TF session to run the operations in.
+            prime_ids (list[int]): Ids of the sequence for priming the model.
+            num_steps (int): The number of tokens generated by the model.
+
+        Returns:
+            list[int]: The generated sequence ids.
+        """
+
+        # Disable dropout and save the LSTM state before overwriting it with sampling
+        self.on_pause_training(session)
+
+        # Prime the model by feeding given inputs while only caring about its last output
+        output = self._sample_step(session, np.array([prime_ids]))[0, -1]
+        outputs = [output]
+
+        # Feed the model its own output #humancentipede
+        for _ in range(num_steps - 1):
+            # Feed one batch with one timestep
+            batch_input = np.array([[output]])
+            batch_output = self._sample_step(session, batch_input)
+            output = batch_output[0, -1]
+            outputs.append(output)
+
+            # If the model output _PAD, abort
+            if output == PAD_ID:
+                break
+
+        # Re-enable dropout and restore the LSTM training state
+        self.will_resume_training(session)
+        return outputs
+
+    def sample_text(self, session, vocabulary, prime, num_steps=100):
         """Let the model generate a sequence based on a preceding string.
 
         This method tokenizes the prime string and feeds the tokens to the model. Then, it feeds the
@@ -202,35 +264,11 @@ class GeneratingLSTM:
             str: The generated text.
         """
 
-        # TODO: Change to ids
-
-        # Disable dropout and save the LSTM state before overwriting it with sampling
-        self.on_pause_training(session)
-
         # Sample from the model
         prime_tokens = tokenize(prime, level=vocabulary.level)
         prime_ids = vocabulary.tokens_to_ids(prime_tokens)
-
-        # Prime the model by feeding given inputs while only caring about its last output
-        output = self._sample_step(session, np.array([prime_ids]))[0, -1]
-        outputs = [output]
-
-        # Feed the model its own output #humancentipede
-        for _ in range(num_steps - 1):
-            # Feed one batch with one timestep
-            batch_input = np.array([[output]])
-            batch_output = self._sample_step(session, batch_input)
-            output = batch_output[0, -1]
-            outputs.append(output)
-
-            # If the model output _PAD, abort
-            if output == vocabulary.token_to_id[PAD_TOKEN]:
-                break
-
-        output_tokens = vocabulary.ids_to_tokens(outputs)
-
-        # Re-enable dropout and restore the LSTM training state
-        self.will_resume_training(session)
+        output_ids = self.sample_ids(session, prime_ids, num_steps)
+        output_tokens = vocabulary.ids_to_tokens(output_ids)
         return ''.join(output_tokens)
 
     def reset_state(self, session):
@@ -391,9 +429,11 @@ class GeneratingLSTM:
             inputs (np.ndarray): A batch of inputs. Must have the shape (batch_size, num_timesteps)
                 and contain only integers. The batch size and number of timesteps are determined
                 dynamically, so the shape of inputs can vary between calls of this function.
-            update_state (bool): If True, this will update the LSTM's memory state. If this function
-                gets called during training, make sure to call it between on_pause_training and
-                will_resume_training.
+            update_state (bool): If True, the LSTM's memory state will be updated after feeding the
+                batch inputs, so that the LSTM will use this state before the next feed of inputs.
+                If this function gets called during training, make sure to call it between
+                on_pause_training and will_resume_training. Thus, the training's memory state will
+                be frozen before and unfrozen after this function call.
 
         Returns:
             np.ndarray: A batch of outputs with the same shape and data type as the inputs
@@ -401,8 +441,7 @@ class GeneratingLSTM:
         """
         # Feed the input
         feed_dict = {self._inputs: inputs}
-        runs = [self._logits]
-        runs.append(self._update_state_op if update_state else tf.no_op())
+        runs = [self._logits, self._update_state_op if update_state else tf.no_op()]
 
         # Get the output
         logits, _ = session.run(runs, feed_dict=feed_dict)
