@@ -174,7 +174,7 @@ class BaseLM:
         loss = self.tf_model.evaluate(tf_session, dataset)
         return loss
 
-    def sample(self, tf_session, prime, num_steps, temperature=0.5):
+    def sample(self, tf_session, prime, num_steps, temperature=0):
         """Let the model generate text after being primed with some text.
 
         Args:
@@ -185,7 +185,8 @@ class BaseLM:
                 in num_steps words / numbers / punctuation marks / whitespace characters
             temperature (float): Degree of randomness during sampling. The logits returned by the
                 model will be divided by the temperature value before calculating the softmax.
-                The temperature will be clipped to 0.01 if it is below this bound.
+                If the temperature is below 0.01, the model will choose the token with the highest
+                predicted probability at each step instead of sampling from the distribution.
 
         Returns:
             str: The generated sequence.

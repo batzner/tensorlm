@@ -34,7 +34,7 @@ with tf.Session() as session:
 
 This should output something like:
 
-    The Wtestath  t s   ien  es a   a     ug   dm     ooi  el e       a   s i  n    k s  a    u  ta    o e
+    The  ee e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e 
   
 ## Command Line Usage
 
