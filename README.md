@@ -2,7 +2,7 @@
 
 Generate Shakespeare poems with 4 lines of code.
 
-<a href="http://www.mlowl.com/post/character-language-model-lstm-tensorflow/" target="_blank">[![showcase of the package](http://i.cubeupload.com/8Cm5RQ.gif)](http://theblog.github.io/post/character-language-model-lstm-tensorflow/)</a>
+<a href="https://theblog.github.io/post/character-language-model-lstm-tensorflow/" target="_blank">[![showcase of the package](http://i.cubeupload.com/8Cm5RQ.gif)](http://theblog.github.io/post/character-language-model-lstm-tensorflow/)</a>
 
 ## Installation
 
@@ -34,7 +34,7 @@ with tf.Session() as session:
 
 This should output something like:
 
-    The     eee       ee      ee      ee     e e     ee      ee     e  e    e  e    e  e    e  e    e  e 
+    The Wtestath  t s   ien  es a   a     ug   dm     ooi  el e       a   s i  n    k s  a    u  ta    o e
   
 ## Command Line Usage
 
