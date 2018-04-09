@@ -14,7 +14,7 @@ with tf.Session() as session:
 
     # Create the model in a TensorFlow graph
     model = GeneratingLSTM(vocab_size=vocab.get_size(), neurons_per_layer=100, num_layers=2,
-                           max_batch_size=BATCH_SIZE)
+                           max_batch_size=BATCH_SIZE, output_keep_prob=0.5)
 
     # Initialize all defined TF Variables
     session.run(tf.global_variables_initializer())

@@ -21,11 +21,11 @@ from tensorlm import CharLM
 with tf.Session() as session:
     
     # Create a new model. You can also use WordLM
-    model = CharLM(session, "datasets/sherlock/train.txt", max_vocab_size=96,
+    model = CharLM(session, "datasets/sherlock/tinytrain.txt", max_vocab_size=96,
                    neurons_per_layer=100, num_layers=3, num_timesteps=15)
     
     # Train it 
-    model.train(session, max_epochs=5, max_steps=500, print_logs=True)
+    model.train(session, max_epochs=5, max_steps=500)
     
     # Let it generate a text
     generated = model.sample(session, "The ", num_steps=100)
@@ -99,7 +99,7 @@ with tf.Session() as session:
 
     # Create the model in a TensorFlow graph
     model = GeneratingLSTM(vocab_size=vocab.get_size(), neurons_per_layer=100, num_layers=2,
-                           max_batch_size=BATCH_SIZE)
+                           max_batch_size=BATCH_SIZE, output_keep_prob=0.5)
 
     # Initialize all defined TF Variables
     session.run(tf.global_variables_initializer())
@@ -121,8 +121,9 @@ with tf.Session() as session:
 
                 # Sample from the model from time to time
                 print("Sampled: \"The " + model.sample_text(session, vocab, "The ") + "\"")
-                
+
             step += 1
+
 ```
 
 This should output something like:
