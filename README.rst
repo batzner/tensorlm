@@ -3,16 +3,13 @@ tensorlm
 
 Generate Shakespeare poems with 4 lines of code.
 
-\ |showcase of the package|\ 
-
 Installation
 ------------
 
-``tensorlm`` is written in / for Python 3.4+
+``tensorlm`` is written in / for Python 3.4+ and TensorFlow 1.1+
 
 ::
 
-    pip3 install tensorflow>=1.1
     pip3 install tensorlm
 
 Basic Usage
@@ -42,7 +39,7 @@ This should output something like:
 
 ::
 
-    The     eee       ee      ee      ee     e e     ee      ee     e  e    e  e    e  e    e  e    e  e 
+    The  ee e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e e 
 
 Command Line Usage
 ------------------
@@ -156,6 +153,3 @@ This should output something like:
     Sampled: "The        ee    e  e   e  e  e  e  e  e  e   e  e  e   e  e  e   e  e  e   e  e  e   e  e  e   e  e  e "
     Epoch: 19, Step: 500, Train Loss: 2.444502, Dev Loss: 2.479753
     Sampled: "The    an  an  an  on  on  on  on  on  on  on  on  on  on  on  on  on  on  on  on  on  on  on  on  on  o"
-
-.. |showcase of the package| image:: http://i.cubeupload.com/8Cm5RQ.gif
-   :target: http://www.mlowl.com/post/character-language-model-lstm-tensorflow/
