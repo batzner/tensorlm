@@ -11,7 +11,7 @@ with open(path.join(here, "README.rst"), encoding="utf-8") as f:
 setup(
     name="tensorlm",
     packages=find_packages(exclude=["examples"]),
-    version="0.4",
+    version="0.4.1",
     description="TensorFlow wrapper for deep neural text generation on character or word level "
                 "with RNNs / LSTMs",
     long_description=long_description,
@@ -19,7 +19,7 @@ setup(
     author_email="tensorlm@kilians.net",
     license="MIT",
     url="https://github.com/batzner/tensorlm",
-    download_url="https://github.com/batzner/tensorlm/archive/v0.4.tar.gz",
+    download_url="https://github.com/batzner/tensorlm/archive/v0.4.1.tar.gz",
     keywords=["tensorflow", "text", "generation", "language", "model", "rnn", "lstm", "deep",
               "neural", "char", "word"],
     classifiers=[
