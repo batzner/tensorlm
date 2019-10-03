@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "numpy==1.13.1",
         "tensorflow>=1.1.0",
-        "nltk==3.2.4",
+        "nltk==3.4.5",
         "python-dateutil==2.6.1",
     ],
 )
