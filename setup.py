@@ -30,7 +30,7 @@ setup(
         "Programming Language :: Python :: 3 :: Only",
     ],
     install_requires=[
-        "numpy==1.13.1",
+        "numpy==1.21.0",
         "tensorflow>=1.1.0",
         "nltk==3.2.4",
         "python-dateutil==2.6.1",
